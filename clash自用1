@@ -1,0 +1,127 @@
+# Clash_Mini 配置
+# 日期：2024-10-04
+# 版本：2.1.6
+# 配置作者：https://github.com/Rabbit-Spec
+# 适用版本：所有使用 Mihomo 内核的程序
+
+port: 7890
+socks-port: 7891
+mixed-port: 7892
+redir-port: 7893
+tproxy-port: 7894
+
+unified-delay: true
+geodata-mode: false
+geodata-loader: standard
+geo-auto-update: true
+geo-update-interval: 24
+tcp-concurrent: true
+find-process-mode: strict
+global-client-fingerprint: chrome
+
+allow-lan: true
+mode: rule
+log-level: info
+ipv6: true
+udp: true
+
+external-controller: 0.0.0.0:9090
+
+geox-url:
+  mmdb: 'https://gitlab.com/Masaiki/GeoIP2-CN/-/raw/release/Country.mmdb'
+  asn: 'https://gitlab.com/Loon0x00/loon_data/-/raw/main/geo/GeoLite2-ASN.mmdb'
+
+profile:
+  store-selected: true
+  store-fake-ip: true
+
+sniffer:
+  enable: true
+  force-dns-mapping: true
+  parse-pure-ip: true
+  override-destination: true
+  sniff:
+    HTTP:
+      ports: [80, 8080-8880]
+      override-destination: true
+    TLS:
+      ports: [443, 8443]
+    QUIC:
+      ports: [443, 8443]
+  force-domain:
+    - +.v2ex.com
+  skip-domain:
+    - Mijia Cloud
+
+tun:
+  enable: true
+  stack: system
+  dns-hijack:
+    - any:53
+  auto-route: true
+  auto-detect-interface: true
+
+dns:
+  enable: true
+  listen: 0.0.0.0:1053
+  ipv6: true
+  enhanced-mode: fake-ip
+  fake-ip-range: 28.0.0.1/8
+  fake-ip-filter:
+    - "*"
+    - +.lan
+  default-nameserver:
+    - 223.5.5.5
+    - 119.29.29.29
+  nameserver:
+    - https://223.5.5.5/dns-query#h3=true
+    - https://223.6.6.6/dns-query#h3=true
+
+# 节点订阅参数
+NodeParam: &NodeParam {type: http, interval: 86400, health-check: {enable: true, url: 'http://www.google.com/generate_204', interval: 60}}
+
+# 节点订阅
+proxy-providers: 
+  我的节点:
+    url: '机场的订阅地址'
+    <<: *NodeParam
+    path: './proxy_provider/Providers.yaml'
+
+# 节点筛选组
+FilterHK: &FilterHK '^(?=.*((?i)🇭🇰|香港|(\b(HK|Hong)\b))).*$'
+FilterJP: &FilterJP '^(?=.*((?i)🇯🇵|日本|(\b(JP|Japan)\b))).*$'
+FilterSG: &FilterSG '^(?=.*((?i)🇸🇬|新加坡|(\b(SG|Singapore)\b))).*$'
+FilterUS: &FilterUS '^(?=.*((?i)🇺🇸|美国|(\b(US|United States)\b))).*$'
+
+# 故障转移参数
+FallBack: &FallBack {type: fallback, interval: 10, lazy: true, url: 'http://www.google.com/generate_204', disable-udp: false, timeout: 2000, max-failed-times: 3, hidden: true, include-all-providers: true}
+
+# 策略组
+proxy-groups: 
+  - {name: Proxy, type: select, proxies: [🇭🇰 香港节点, 🇺🇸 美国节点, 🇯🇵 日本节点, 🇸🇬 新加坡节点]}
+  - {name: All_SpeedTest, type: select, proxies: [Proxy]}
+  - {name: Manual_Select, type: select, proxies: [🇭🇰 香港节点, 🇺🇸 美国节点, 🇯🇵 日本节点, 🇸🇬 新加坡节点]}
+
+  - {name: 🇭🇰 香港节点, <<: *FallBack, filter: *FilterHK}
+  - {name: 🇺🇸 美国节点, <<: *FallBack, filter: *FilterUS}
+  - {name: 🇯🇵 日本节点, <<: *FallBack, filter: *FilterJP}
+  - {name: 🇸🇬 新加坡节点, <<: *FallBack, filter: *FilterSG}
+
+# 订阅规则
+rule-providers:
+  GlobalMedia:
+    <<: *RuleSet
+    url: 'https://gh.api.99988866.xyz/https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/GlobalMedia/GlobalMedia_Classical.yaml'
+    path: './RuleSet/GlobalMedia.yaml'
+
+  ChinaMedia:
+    <<: *RuleSet
+    url: 'https://gh.api.99988866.xyz/https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/ChinaMedia/ChinaMedia.yaml'
+    path: './RuleSet/ChinaMedia.yaml'
+
+# 分流规则指向
+rules:
+ - RULE-SET,GlobalMedia,GlobalMedia
+ - RULE-SET,ChinaMedia,DIRECT
+ - GEOIP,CN,DIRECT
+ - MATCH,Proxy
